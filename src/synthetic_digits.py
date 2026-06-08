@@ -21,8 +21,20 @@ FONT_SIZES = (60, 70, 80, 90)
 MAX_ROTATION_DEG = 12.0
 MAX_SHIFT_PX = 2
 
-FONTS_DIR = Path("C:/Windows/Fonts")
-FONT_NAMES = (
+MAX_FONTS = 16
+
+# Searched in order; covers Windows dev machines and Linux CI runners (where
+# fonts-dejavu-core / fonts-liberation are preinstalled under /usr/share/fonts).
+FONT_SEARCH_DIRS = (
+    Path("C:/Windows/Fonts"),
+    Path("/usr/share/fonts"),
+    Path("/usr/local/share/fonts"),
+    Path.home() / ".fonts",
+)
+
+# Preferred for stylistic variety when present (mostly Windows system fonts);
+# otherwise we fall back to whatever .ttf/.otf files we can find.
+PREFERRED_FONT_NAMES = (
     "arial.ttf", "arialbd.ttf",
     "calibri.ttf", "calibrib.ttf",
     "verdana.ttf", "verdanab.ttf",
@@ -30,8 +42,34 @@ FONT_NAMES = (
     "segoeui.ttf", "segoeuib.ttf",
     "consola.ttf", "couri.ttf",
     "timesbd.ttf",
+    "DejaVuSans.ttf", "DejaVuSans-Bold.ttf", "DejaVuSans-Oblique.ttf",
+    "LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf",
 )
-FONT_PATHS = tuple(p for p in (FONTS_DIR / name for name in FONT_NAMES) if p.exists())
+
+
+def _discover_fonts() -> tuple[Path, ...]:
+    """Locate usable TrueType/OpenType font files on this machine.
+
+    Returns:
+        Paths to font files -- PREFERRED_FONT_NAMES when any are present
+        (for stylistic variety), otherwise up to MAX_FONTS of whatever
+        .ttf/.otf files are found under FONT_SEARCH_DIRS.
+    """
+    by_name: dict[str, Path] = {}
+    for directory in FONT_SEARCH_DIRS:
+        if not directory.is_dir():
+            continue
+        for path in directory.rglob("*"):
+            if path.suffix.lower() in (".ttf", ".otf"):
+                by_name.setdefault(path.name, path)
+
+    preferred = tuple(by_name[name] for name in PREFERRED_FONT_NAMES if name in by_name)
+    if preferred:
+        return preferred
+    return tuple(sorted(by_name.values(), key=lambda p: p.name)[:MAX_FONTS])
+
+
+FONT_PATHS = _discover_fonts()
 
 
 def _render_digit(
@@ -95,7 +133,7 @@ def generate_dataset(samples_per_digit: int = 200, seed: int = 0) -> tuple[np.nd
         in [0, 1]; labels has shape (N,) with int64 values 0-9.
     """
     if not FONT_PATHS:
-        raise FileNotFoundError(f"No usable fonts found under {FONTS_DIR}")
+        raise FileNotFoundError(f"No usable fonts found under any of {FONT_SEARCH_DIRS}")
 
     rng = np.random.default_rng(seed)
     images: list[np.ndarray] = []
