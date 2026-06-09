@@ -92,6 +92,21 @@ to `predict_fn`.
 On sudokureader's 3 sample puzzles, this lifted grid-read accuracy from **80.9%** (76/94
 filled cells) to **98.9%** (93/94) — with the one remaining miss a single `6 → 8` confusion.
 
+## Exporting to TensorFlow Lite (LiteRT)
+
+For on-device inference on Android/iOS via LiteRT, convert the trained model to `.tflite`:
+
+```bash
+pip install tensorflow
+python scripts/export_tflite.py                                          # mnist_printed.npz -> mnist_printed.tflite
+python scripts/export_tflite.py --input output/mnist.npz --output output/mnist.tflite
+```
+
+`scripts/export_tflite.py` reconstructs the MLP as a Keras `Sequential` model from the
+`W1/b1/W2/b2` arrays and calls `TFLiteConverter` — no retraining needed. TensorFlow is an
+optional dependency used only for this conversion step; the rest of the repo does not require
+it. The output `.tflite` file is gitignored alongside `.npz`.
+
 ## Project structure
 
 ```
@@ -99,10 +114,12 @@ src/
   mlp.py              # MLP(nn.Module): 784 -> hidden -> 10
   export.py           # export_npz(): state_dict -> W1/b1/W2/b2 .npz
   synthetic_digits.py # generate_dataset(): renders printed digits 0-9 into MNIST-format images
+scripts/
+  export_tflite.py    # converts .npz weights to .tflite (LiteRT) for Android/iOS deployment
 train_mnist.py        # downloads MNIST (70k samples via OpenML), trains, evaluates, exports
 finetune_printed.py   # fine-tunes the trained model on synthetic printed digits + MNIST replay
 tests/
   test_mlp.py         # forward-pass shape and determinism
   test_export.py      # exported arrays match the PyTorch forward pass
-output/               # mnist.npz / mnist_printed.npz land here (gitignored)
+output/               # mnist.npz / mnist_printed.npz / mnist_printed.tflite land here (gitignored)
 ```
