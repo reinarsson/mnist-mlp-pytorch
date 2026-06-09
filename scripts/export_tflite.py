@@ -48,7 +48,7 @@ def export_tflite(input_path: Path, output_path: Path) -> None:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(tflite_model)
-    print(f"Exported {len(tflite_model):,} bytes → {output_path}")
+    print(f"Exported {len(tflite_model):,} bytes to {output_path}")
 
 
 def main() -> None:
